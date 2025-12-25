@@ -1,20 +1,49 @@
 import { Button, Flex, Input, Spinner } from "@chakra-ui/react";
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import { IoMdAdd } from "react-icons/io";
+import {useMutation, useQueryClient} from "@tanstack/react-query";
+import {BASE_API_URL} from "@/App.tsx";
 
 const TodoForm = () => {
 	const [newTodo, setNewTodo] = useState("");
-	const [isPending, setIsPending] = useState(false);
 	const inputRef = useRef<HTMLInputElement>(null);
 
 	useEffect(() => {
 		inputRef.current?.focus();
 	}, []);
 
-	const createTodo = async (e: FormEvent) => {
-		e.preventDefault();
-		alert("Todo added!");
-	};
+	const queryClient = useQueryClient()
+
+	const { mutate: createTodo, isPending } = useMutation({
+		mutationKey: ["createTodo"],
+		mutationFn: async (e: FormEvent) => {
+			e.preventDefault();
+			try {
+				const res = await fetch(`${BASE_API_URL}/todos`, {
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json"
+					},
+					body: JSON.stringify({ body: newTodo })
+				})
+				const data = await res.json()
+
+				if(!res.ok) {
+					throw new Error(data.error || "Something went wrong")
+				}
+
+				setNewTodo("")
+
+				return data
+			} catch (e) {
+				console.log(e)
+			}
+		},
+		onSuccess: () => {
+			queryClient.invalidateQueries({queryKey: ["todos"]})
+		}
+	})
+
 	return (
 		<form onSubmit={createTodo}>
 			<Flex gap={2} mb={4}>
